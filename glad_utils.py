@@ -45,6 +45,8 @@ def prepare_latents(channel=3, num_classes=10, im_size=(32, 32), zdim=512, G=Non
                 one_hot_dim = 10
             elif args.dataset == "CIFAR100":
                 one_hot_dim = 100
+            elif args.dataset == "videonet":
+                one_hot_dim = 9
             if args.avg_w:
                 G_labels = torch.zeros([label_syn.nelement(), one_hot_dim], device=args.device)
                 G_labels[
@@ -141,6 +143,49 @@ def get_eval_lrs(args):
     }
 
     return eval_pool_dict
+
+def eval_loop_v2(latents=None, f_latents=None, label_syn=None, G=None, best_acc={}, best_std={}, testloader=None, model_eval_pool=[], it=0, channel=3, num_classes=10, im_size=(32, 32), args=None):
+
+    eval_pool_dict = get_eval_lrs(args)
+
+    res_dict = {}
+
+    for model_eval in model_eval_pool:
+
+        if model_eval != args.model and args.wait_eval and it != args.Iteration:
+            continue
+        print('-------------------------\nEvaluation\nmodel_train = %s, model_eval = %s, iteration = %d' % (
+        args.model, model_eval, it))
+
+        metric_train_all = []
+        metric_test_all = []
+
+        for it_eval in range(args.num_eval):
+            net_eval = get_network(model_eval, channel, num_classes, im_size, width=args.width, depth=args.depth,
+                                   dist=False).to(args.device)  # get a random model
+            eval_lats = latents
+            eval_labs = label_syn
+            image_syn = latents
+            image_syn_eval, label_syn_eval = copy.deepcopy(image_syn.detach()), copy.deepcopy(
+                eval_labs.detach())  # avoid any unaware modification
+
+            if args.space == "wp":
+                with torch.no_grad():
+                    image_syn_eval = torch.cat(
+                        [latent_to_im(G, (image_syn_eval_split, f_latents_split), args=args).detach() for
+                         image_syn_eval_split, f_latents_split, label_syn_split in
+                         zip(torch.split(image_syn_eval, args.sg_batch), torch.split(f_latents, args.sg_batch),
+                             torch.split(label_syn, args.sg_batch))])
+
+            args.lr_net = eval_pool_dict[model_eval]
+            _, metric_train_list, metric_test_list = evaluate_synset(it_eval, net_eval, image_syn_eval, label_syn_eval, testloader,
+                                                     args=args, aug=True)
+            metric_train_all.append(metric_train_list)
+            metric_test_all.append(metric_test_list)
+            del _
+            del net_eval
+        res_dict[model_eval] = metric_test_all
+    return res_dict
 
 
 def eval_loop(latents=None, f_latents=None, label_syn=None, G=None, best_acc={}, best_std={}, testloader=None, model_eval_pool=[], it=0, channel=3, num_classes=10, im_size=(32, 32), args=None):
@@ -247,16 +292,16 @@ def load_sgxl(res, args=None):
     device = torch.device('cuda')
     if args.special_gan is not None:
         if args.special_gan == "ffhq":
-            # network_pkl = "https://s3.eu-central-1.amazonaws.com/avg-projects/stylegan_xl/models/ffhq{}.pkl".format(res)
-            network_pkl = "../stylegan_xl/ffhq{}.pkl".format(res)
+            network_pkl = "https://s3.eu-central-1.amazonaws.com/avg-projects/stylegan_xl/models/ffhq{}.pkl".format(res)
+            # network_pkl = "../stylegan_xl/ffhq{}.pkl".format(res)
             key = "G_ema"
         elif args.special_gan == "pokemon":
-            # network_pkl = "https://s3.eu-central-1.amazonaws.com/avg-projects/stylegan_xl/models/pokemon{}.pkl".format(res)
-            network_pkl = "../stylegan_xl/pokemon{}.pkl".format(
-                res)
+            network_pkl = "https://s3.eu-central-1.amazonaws.com/avg-projects/stylegan_xl/models/pokemon{}.pkl".format(res)
+            # network_pkl = "../stylegan_xl/pokemon{}.pkl".format(
+                # res)
             key = "G_ema"
 
-    elif "imagenet" in args.dataset:
+    elif "imagenet" in args.dataset or "videonet" in args.dataset:
         if args.rand_gan_con:
             network_pkl = "../stylegan_xl/random_conditional_{}.pkl".format(res)
             key = "G"

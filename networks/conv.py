@@ -13,7 +13,8 @@ class ConvNet(nn.Module):
     def forward(self, x):
         # print("MODEL DATA ON: ", x.get_device(), "MODEL PARAMS ON: ", self.classifier.weight.data.get_device())
         out = self.features(x)
-        out = out.view(out.size(0), -1)
+        # out = out.view(out.size(0), -1)
+        out = out.reshape(out.size(0), -1)
         out = self.classifier(out)
         return out
 

@@ -4,14 +4,17 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms.functional
+from torchvision.datasets import ImageFolder
 import os
 import kornia as K
 import tqdm
+import h5py
 from torch.utils.data import Dataset
 from torchvision import datasets, transforms
 # from scipy.ndimage.interpolation import rotate as scipyrotate
 from ema_pytorch import EMA
 from networks import *
+from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
 
 class Config:
     custom = [1, 199, 388, 294, 340, 932, 327, 765, 928, 486]
@@ -89,6 +92,36 @@ class Config:
 
 
 config = Config()
+
+
+class HDF5Dataset(Dataset):
+    def __init__(self, h5_file_path, dataset_name, label_dataset_name, transform=None):
+        self.h5_file_path = h5_file_path
+        self.dataset_name = dataset_name
+        self.h5_file = h5py.File(h5_file_path, 'r')
+        self.dataset = self.h5_file[dataset_name]
+        self.length = self.dataset.shape[0]
+        self.transform = transform
+        self.label = self.h5_file[label_dataset_name]
+        # print(self.label.shape)
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        data = self.dataset[idx, :]
+        if data.ndim == 2:  # Ensure single-channel format
+            data = np.expand_dims(data, axis=0)
+        data = data.transpose((1, 2, 0))  # Change to HWC format for PIL
+        label = self.label[idx]
+        if self.transform:
+            data = self.transform(data)
+        return data, label
+
+    def __del__(self):
+        self.h5_file.close()
 
 
 def get_dataset(dataset, data_path, batch_size=1, res=None, args=None):
@@ -173,6 +206,58 @@ def get_dataset(dataset, data_path, batch_size=1, res=None, args=None):
         class_map_inv = {i: x for i, x in enumerate(config.img_net_classes)}
         class_names = None
 
+    elif dataset == "ultrasound":
+        channel = 1
+        im_size = (res, res)
+        mean = [0.5]
+        std = [0.5]
+        num_classes = 14
+
+        transform = transforms.Compose([transforms.ToTensor(),
+                                transforms.Normalize(mean=mean, std=std),
+                                transforms.Resize(res),
+                                transforms.CenterCrop(res)])
+
+        dataset_path = '../bkainz_data/combined_inp_filter_224x288.hdf5'
+        dst_train = HDF5Dataset(dataset_path, "images_train_filtered", "plane_labels_train_filtered", transform=transform)
+        dst_test = HDF5Dataset(dataset_path, "images_test", "plane_labels_test", transform=transform)
+        class_names = None
+        class_map = {x:x for x in range(num_classes)}
+        class_map_inv = {x: x for x in range(num_classes)}
+        
+    elif dataset == "videonet" or dataset == "videonet_new":
+
+        channel = 3
+        im_size = (res, res)
+
+        # config.img_net_classes = config.dict[dataset]
+
+        if not args.use_gan:
+            mean = [0.485, 0.456, 0.406]
+            std = [0.229, 0.224, 0.225]
+        else:
+            mean = [0.5, 0.5, 0.5]
+            std = [0.5, 0.5, 0.5]
+
+        transform = transforms.Compose([transforms.ToTensor(),
+                                        transforms.Normalize(mean=mean, std=std),
+                                        transforms.Resize(res),
+                                        transforms.CenterCrop(res)])
+
+        if dataset == "videonet":
+
+            dst_train = ImageFolder(root='./videonet/videos_with_one_category_img/train', transform=transform)
+            dst_test = ImageFolder(root='./videonet/videos_with_one_category_img/val', transform=transform)
+            num_classes = 9
+
+        elif dataset == "videonet_new":
+            dst_train = ImageFolder(root='./ILSVRC2017_VID_PROCESSED/train', transform=transform)
+            dst_test = ImageFolder(root='./ILSVRC2017_VID_PROCESSED/val', transform=transform)
+            num_classes = 10
+
+        class_names = dst_train.classes
+        class_map = {x:x for x in range(num_classes)}
+        class_map_inv = {x: x for x in range(num_classes)}
 
 
     else:
@@ -227,6 +312,7 @@ def get_network(model, channel, num_classes, im_size=(32, 32), dist=True, depth=
             mlp_dim = 512,
             dropout = 0.1,
             emb_dropout = 0.1,
+            channels = channel
         )
 
 
@@ -370,10 +456,11 @@ def get_loops(ipc):
 
 
 
-def epoch(mode, dataloader, net, optimizer, criterion, args, aug):
+def epoch(mode, dataloader, net, optimizer, criterion, args, aug, ret_only_acc=False):
     loss_avg, acc_avg, num_exp = 0, 0, 0
     net = net.to(args.device)
-    # criterion = criterion.to(args.device)
+    all_labels = []
+    all_predictions = []
 
     if "imagenet" in args.dataset:
         class_map = {x: i for i, x in enumerate(config.img_net_classes)}
@@ -393,15 +480,11 @@ def epoch(mode, dataloader, net, optimizer, criterion, args, aug):
             else:
                 img = augment(img, args.dc_aug_param, device=args.device)
 
-        # print(lab)
         if "imagenet" in args.dataset and mode != "train":
             lab = torch.tensor([class_map[x.item()] for x in lab]).to(args.device)
-        # print(lab)
 
         n_b = lab.shape[0]
-
         output = net(img)
-        # print(output)
         loss = criterion(output, lab)
 
         predicted = torch.argmax(output.data, 1)
@@ -411,6 +494,9 @@ def epoch(mode, dataloader, net, optimizer, criterion, args, aug):
         acc_avg += correct.item()
         num_exp += n_b
 
+        all_labels.extend(lab.cpu().numpy())
+        all_predictions.extend(predicted.cpu().numpy())
+
         if mode == 'train':
             optimizer.zero_grad()
             loss.backward()
@@ -419,15 +505,32 @@ def epoch(mode, dataloader, net, optimizer, criterion, args, aug):
     loss_avg /= num_exp
     acc_avg /= num_exp
 
-    return loss_avg, acc_avg
+    precision = precision_score(all_labels, all_predictions, average=None, zero_division=0)
+    recall = recall_score(all_labels, all_predictions, average=None, zero_division=0)
+    f1 = f1_score(all_labels, all_predictions, average=None, zero_division=0)
+
+    conf_matrix = confusion_matrix(all_labels, all_predictions)
+
+    if ret_only_acc:
+
+        return loss_avg, acc_avg
+    else:
+        metric_dict = {
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+            "accuracy": acc_avg,
+            "confusion_matrix": conf_matrix,
+        }
+        return loss_avg, metric_dict
 
 
-def evaluate_synset(it_eval, net, images_train, labels_train, testloader, args, decay="cosine", return_loss=False, test_it=100, aug=True):
+def evaluate_synset(it_eval, net, images_train, labels_train, testloader, args, decay="cosine", return_loss=False, test_it=100, aug=True, Epoch=None):
     net = net.to(args.device)
     images_train = images_train.to(args.device)
     labels_train = labels_train.to(args.device)
     lr = float(args.lr_net)
-    Epoch = int(args.epoch_eval_train)
+    Epoch = int(args.epoch_eval_train) if Epoch is None else Epoch
     lr_schedule = [Epoch//2+1]
     optimizer = torch.optim.SGD(net.parameters(), lr=lr, momentum=0.9, weight_decay=0.0005)
 
@@ -450,16 +553,17 @@ def evaluate_synset(it_eval, net, images_train, labels_train, testloader, args, 
     dst_train = TensorDataset(images_train, labels_train)
     trainloader = torch.utils.data.DataLoader(dst_train, batch_size=args.batch_train, shuffle=True, num_workers=0)
 
+    metric_train_list = []
+    metric_test_list = []
+
     start = time.time()
-    acc_train_list = []
+    # acc_train_list = []
     loss_train_list = []
-    acc_test_list = []
+    # acc_test_list = []
     loss_test_list = []
-    acc_test_max = 0
-    acc_test_max_epoch = 0
     for ep in tqdm.tqdm(range(Epoch)):
-        loss_train, acc_train = epoch('train', trainloader, net, optimizer, criterion, args, aug=aug)
-        acc_train_list.append(acc_train)
+        loss_train, metric_dict_train = epoch('train', trainloader, net, optimizer, criterion, args, aug=aug)
+        metric_train_list.append(metric_dict_train)
         loss_train_list.append(loss_train)
         ema.update()
         sched.step()
@@ -467,29 +571,24 @@ def evaluate_synset(it_eval, net, images_train, labels_train, testloader, args, 
             sched = sched2
 
     with torch.no_grad():
-        loss_test, acc_test = epoch('test', testloader, ema, optimizer, criterion, args, aug=False)
-    acc_test_list.append(acc_test)
+        loss_test, metric_dict_test = epoch('test', testloader, ema, optimizer, criterion, args, aug=False)
+    metric_test_list.append(metric_dict_test)
     loss_test_list.append(loss_test)
-    print("TestAcc Epoch {}:\t{}".format(ep, acc_test))
-    if acc_test > acc_test_max:
-        acc_test_max = acc_test
-        acc_test_max_epoch = ep
-        print("NewMax {} at epoch {}".format(acc_test_max, acc_test_max_epoch))
-
     time_train = time.time() - start
 
-    print('%s Evaluate_%02d: epoch = %04d train time = %d s train loss = %.6f train acc = %.4f, test acc = %.4f' % (get_time(), it_eval, Epoch, int(time_train), loss_train, acc_train, acc_test_max))
-    print("Max {} at epoch {}".format(acc_test_max, acc_test_max_epoch))
+    # print('%s Evaluate_%02d: epoch = %04d train time = %d s train loss = %.6f train acc = %.4f, test acc = %.4f' % (get_time(), it_eval, Epoch, int(time_train), loss_train, acc_train, acc_test_max))
+    # print("Max {} at epoch {}".format(acc_test_max, acc_test_max_epoch))
 
     if return_loss:
-        return net, acc_train_list, acc_test_list, loss_train_list, loss_test_list
+        return net, metric_train_list, metric_test_list, loss_train_list, loss_test_list
     else:
-        return net, acc_train_list, acc_test_list
+        return net, metric_train_list, metric_test_list
 
 
 def get_eval_pool(eval_mode, model, model_eval):
     if eval_mode == 'M': # multiple architectures
-        model_eval_pool = [model, "ResNet18", "VGG11", "AlexNet", "ViT"]
+        # model_eval_pool = [model, "ResNet18", "VGG11", "AlexNet", "ViT"]
+        model_eval_pool = [model, "ResNet18"]
     elif eval_mode == 'W': # ablation study on network width
         model_eval_pool = ['ConvNetW32', 'ConvNetW64', 'ConvNetW128', 'ConvNetW256']
     elif eval_mode == 'D': # ablation study on network depth
