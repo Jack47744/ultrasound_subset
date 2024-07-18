@@ -18,10 +18,13 @@ import torch
 import dnnlib
 from torch_utils import misc
 import io
+import timm
+from timm.models.layers import conv2d_same, Conv2dSame
 
 #----------------------------------------------------------------------------
 
 def load_network_pkl(f, force_fp16=False):
+    print(f)
     data = _LegacyUnpickler(f).load()
 
     # Legacy TensorFlow pickle => convert.
@@ -73,6 +76,17 @@ class _LegacyUnpickler(pickle.Unpickler):
             return lambda b: torch.load(io.BytesIO(b), map_location='cpu')
         if module == 'torch.storage' and name == '_load_from_bytes':
             return lambda b: torch.load(io.BytesIO(b), map_location='cpu')
+        if module == 'timm.models.layers.conv2d_same' and name == 'Conv2dSame':
+            return timm.models.layers.Conv2dSame
+        if module == "timm.models.layers.patch_embed" and name ==  "PatchEmbed":
+            return timm.models.layers.PatchEmbed
+        if module == "timm.models.layers.mlp" and name == "Mlp":
+            return timm.models.layers.Mlp
+        if module == "timm.models.efficientnet_blocks":
+            module = "timm.models._efficientnet_blocks"
+        
+        
+        # print(module, name)
         return super().find_class(module, name)
 
 #----------------------------------------------------------------------------
