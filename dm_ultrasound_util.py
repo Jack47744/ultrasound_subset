@@ -497,7 +497,7 @@ def split_tensor_to_list(tensor, class_counts):
     
     return split_tensors
 
-def plot_images_with_similarity(all_img_top_k_list, similarity_loss_list, ipc, num_classes):
+def plot_images_with_similarity(args, all_img_top_k_list, similarity_loss_list, ipc, num_classes, unnormalize):
     # Determine the number of classes
 
     
@@ -509,9 +509,9 @@ def plot_images_with_similarity(all_img_top_k_list, similarity_loss_list, ipc, n
         for j in range(images.shape[0]):
             ax = axs[i, j]
             if args.use_gan:
-                images[j] = denorm(torch.unsqueeze(images[j], 0), channels=None, w=None ,h=None, resize = False)
+                images[j] = denorm(torch.unsqueeze(images[j], 0), unnormalize, channels=None, w=None ,h=None, resize = False)
             else:
-                images[j] = denorm(torch.unsqueeze(images[j], 0), channels=None, w=None ,h=None, resize = False)
+                images[j] = denorm(torch.unsqueeze(images[j], 0), unnormalize, channels=None, w=None ,h=None, resize = False)
 
             if images[j].shape[0] == 3:
                 img = images[j].permute(1, 2, 0)  # Convert from (C, H, W) to (H, W, C)
