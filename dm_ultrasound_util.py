@@ -202,7 +202,7 @@ def get_processed_metrics(metric_list_all):
 
 def process_mean_std_metrics(precision_arr, recall_arr, f1_arr, accuracy_arr, conf_mtx_arr, class_count):
     mean_df = pd.DataFrame({
-        "class": [label_number_to_name_dict[i] for i in range(num_classes)],
+        "class": [label_number_to_name_dict[i] for i in range(len(class_count))],
         "precision_avg": precision_arr.mean(axis=0),
         "recall_avg": recall_arr.mean(axis=0),
         "f1_avg": f1_arr.mean(axis=0),
@@ -210,7 +210,7 @@ def process_mean_std_metrics(precision_arr, recall_arr, f1_arr, accuracy_arr, co
     }).sort_values(by=['class'])
 
     std_df = pd.DataFrame({
-        "class": [label_number_to_name_dict[i] for i in range(num_classes)],
+        "class": [label_number_to_name_dict[i] for i in range(len(class_count))],
         "precision_std": precision_arr.std(axis=0),
         "recall_std": recall_arr.std(axis=0),
         "f1_std": f1_arr.std(axis=0),
@@ -259,7 +259,7 @@ def cond_bar_cell(worksheet, start_row_arr, start_col_arr, height, width, color=
     worksheet.conditional_format(data_range, {'type': 'data_bar',
                                           'bar_color': color})
 
-def save_res_dict_excel(res_dict, class_count, dir, file_prefix=""):
+def save_res_dict_excel(args, res_dict, class_count, dir, file_prefix=""):
     for model_eval, metric_test_all in res_dict.items():
 
         precision_arr, recall_arr, f1_arr, accuracy_arr, conf_mtx_arr = get_processed_metrics(metric_test_all)
@@ -554,7 +554,7 @@ def number_sign_augment(image_syn, label_syn):
     label_syn_augmented = label_syn.repeat(4)
     return image_syn_augmented, label_syn_augmented
 
-def get_top_img(mse_latent_dict):
+def get_top_img(images_all, mse_latent_dict):
     top_k = 1
 
     print(f" ----- top k: {top_k} ----- ")
@@ -577,8 +577,8 @@ def get_top_img(mse_latent_dict):
     return top_image_list, top_label_list, top_image_indices
 
 
-def plot_embedding(img_latent_mean_all_list, mse_latent_dict, args, save_path=""):
-    top_image_list, top_label_list, top_image_indices = get_top_img(mse_latent_dict)
+def plot_embedding(images_all, img_latent_mean_all_list, mse_latent_dict, args, save_path=""):
+    top_image_list, top_label_list, top_image_indices = get_top_img(images_all, mse_latent_dict)
 
     top_class_dict = defaultdict(list)
 
@@ -892,6 +892,10 @@ def run_idm(
         for _ in range(args.outer_loop):
             loss_avg = 0
             mtt_loss_avg = 0
+
+            dm_loss_avg = 0
+            ce_loss_weight = 0
+
             metrics = {'syn': 0, 'real': 0}
             acc_avg = {'syn':torchnet.meter.ClassErrorMeter(accuracy=True)}
 
@@ -942,7 +946,11 @@ def run_idm(
                             output_real = embed(img_real).detach()
                             output_syn = embed(img_syn)
 
-                            loss_c += torch.sum((torch.mean(output_real, dim=0) - torch.mean(output_syn, dim=0))**2)
+                            dm_loss = torch.sum((torch.mean(output_real, dim=0) - torch.mean(output_syn, dim=0))**2)
+                            loss_c += dm_loss
+                            dm_loss_avg += dm_loss.item()
+
+
                             logits_syn = net(img_syn)
                             metrics[image_sign] += F.cross_entropy(logits_syn, lab_syn.repeat(args.aug_num)).detach().item()
                             acc_avg[image_sign].add(logits_syn.detach(), lab_syn.repeat(args.aug_num))
@@ -952,6 +960,7 @@ def run_idm(
                                 weight_i = net_acc.value()[0] if net_acc.n != 0 else 0
                                 syn_ce_loss += (F.cross_entropy(logits_syn, lab_syn.repeat(args.aug_num)) * weight_i)
                                 loss_c += (syn_ce_loss * args.ce_weight)
+                                ce_loss_weight += (syn_ce_loss * args.ce_weight).item()
 
                             optimizer_img.zero_grad()
                             loss_c.backward()
@@ -983,10 +992,14 @@ def run_idm(
 
             loss_avg /= (num_classes)
             mtt_loss_avg /= (num_classes)
+            dm_loss_avg /= (num_classes)
+            ce_loss_weight /= (num_classes)
             metrics = {k:v/num_classes for k, v in metrics.items()}
 
             wandb.log({
-                "Loss": loss_avg
+                "Total Loss": loss_avg,
+                "DM Loss": dm_loss_avg,
+                "Weighted CE Loss": ce_loss_weight,
             }, step=it)
 
             shuffled_net_index = list(range(len(net_list)))
