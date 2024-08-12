@@ -46,15 +46,15 @@ import argparse
 
 def add_shared_args():
     parser = argparse.ArgumentParser(description='Parameter Processing')
-    parser.add_argument('--dataset', type=str, default='CIFAR10', help='dataset')
+    parser.add_argument('--dataset', type=str, default='ultrasound', help='dataset')
     parser.add_argument('--model', type=str, default='ConvNet', help='model')
-    parser.add_argument('--ipc', type=int, default=1, help='image(s) per class')
+    parser.add_argument('--ipc', type=int, default=50, help='image(s) per class')
     parser.add_argument('--eval_mode', type=str, default='M',
                         help='eval_mode')  # S: the same to training model, M: multi architectures
     parser.add_argument('--num_eval', type=int, default=5, help='the number of evaluating randomly initialized models')
     parser.add_argument('--eval_it', type=int, default=100, help='how often to evaluate')
     parser.add_argument('--save_it', type=int, default=None, help='how often to evaluate')
-    parser.add_argument('--epoch_eval_train', type=int, default=1000,
+    parser.add_argument('--epoch_eval_train', type=int, default=100,
                         help='epochs to train a model with synthetic data')
     parser.add_argument('--Iteration', type=int, default=1000, help='training iterations')
 
@@ -75,7 +75,7 @@ def add_shared_args():
     parser.add_argument('--save_path', type=str, default='result', help='path to save results')
 
     parser.add_argument('--space', type=str, default='p', choices=['p', 'wp'])
-    parser.add_argument('--res', type=int, default=128, choices=[128, 256, 512], help='resolution')
+    parser.add_argument('--res', type=int, default=64, choices=[64, 128, 256, 512], help='resolution')
     parser.add_argument('--layer', type=int, default=12)
     parser.add_argument('--avg_w', action='store_true')
 
@@ -102,15 +102,17 @@ def add_shared_args():
     parser.add_argument('--learn_g', action='store_true')
 
     parser.add_argument('--width', type=int, default=128)
-    parser.add_argument('--depth', type=int, default=5)
-
+    parser.add_argument('--depth', type=int, default=4)
 
     parser.add_argument('--special_gan', default=None)
 
     return parser
 
-def get_sample_syn_label(labels_all, ratio, min_syn=None, max_syn=None):
-    _, train_class_counts = np.unique(labels_all.numpy(), return_counts=True)
+def get_sample_syn_label(labels_all, ratio, num_classes=None, min_syn=None, max_syn=None):
+    if num_classes:
+        train_class_counts = np.bincount(labels_all, minlength=num_classes)
+    else:
+        _, train_class_counts = np.unique(labels_all.numpy(), return_counts=True)
     num_sample_class = [round(ratio*e) for e in train_class_counts]
     if max_syn is None:
         return np.array(num_sample_class)
@@ -415,7 +417,17 @@ def get_embed_list(args, channel, num_classes, im_size, num_net=10):
 
     return embed_list
 
-def get_most_similar_img(latents_tmp, args, indices_class, images_all, get_mean_embed_only=False, is_stack=True, embed_list=[], ret_img_latent=False):
+def get_most_similar_img(
+        latents_tmp, 
+        args, 
+        indices_class, 
+        images_all, 
+        get_mean_embed_only=False, 
+        is_stack=True, 
+        embed_list=[], 
+        ret_img_latent=False,
+        ignore_class=[],
+    ):
 
     if not embed_list:
         net_list = get_embed_list(args, 10)
@@ -554,7 +566,7 @@ def number_sign_augment(image_syn, label_syn):
     label_syn_augmented = label_syn.repeat(4)
     return image_syn_augmented, label_syn_augmented
 
-def get_top_img(images_all, mse_latent_dict):
+def get_top_img(images_all, mse_latent_dict, ignore_class=[]):
     top_k = 1
 
     print(f" ----- top k: {top_k} ----- ")
@@ -563,6 +575,8 @@ def get_top_img(images_all, mse_latent_dict):
     top_image_indices = []  # List to store the indices of the top images
 
     for (c, latent_idx) in tqdm(mse_latent_dict):
+        if c in ignore_class:
+            continue
         k = (c, latent_idx)
         mse_val_list = sorted(mse_latent_dict[k])[:top_k]
         top_img_idx = [e[1] for e in mse_val_list]
@@ -692,7 +706,20 @@ def save_latents(args, latents, generator=None, it=0):
     print(f"Save at {save_latent_path}")
 
 
-def run_dm(args, indices_class, images_all, channel, num_classes, im_size=(64, 64), generator=None, n_sample_list=None, is_save_img=False, is_save_latent=False, unnormalize=None):
+def run_dm(
+    args, 
+    indices_class,
+    images_all, 
+    channel, 
+    num_classes, 
+    im_size=(64, 64), 
+    generator=None, 
+    n_sample_list=None, 
+    is_save_img=False, 
+    is_save_latent=False, 
+    unnormalize=None,
+    ignore_class = [],
+):
 
     run = wandb.init(
         project="GLaD",
@@ -743,6 +770,8 @@ def run_dm(args, indices_class, images_all, channel, num_classes, im_size=(64, 6
 
             loss = torch.tensor(0.0).to(args.device)
             for c in range(num_classes):
+                if c in ignore_class:
+                    continue
                 img_real = get_images(c, args.batch_real, args, indices_class, images_all).to(args.device)
                 if args.use_sample_ratio:
                     img_syn = get_latent_sample_class(c, image_syn, n_sample_list).reshape((n_sample_list[c], channel, im_size[0], im_size[1]))
@@ -781,6 +810,8 @@ def run_dm(args, indices_class, images_all, channel, num_classes, im_size=(64, 6
 
             if it%50 == 0 and is_save_img:
                 print('%s iter = %04d, loss = %.4f' % (get_time(), it, loss_avg))
+                if not args.use_gan:
+                    syn_images = None
                 save_latent_images(args, syn_images, latents, unnormalize, it=it)
 
             if it % 200 == 0 and it > 0 and is_save_latent:
@@ -814,7 +845,8 @@ def run_idm(
     n_sample_list=None, 
     is_save_img=False, 
     is_save_latent=False,
-    unnormalize=None
+    unnormalize=None,
+    ignore_class = [],
 ):
     run = wandb.init(
         project="GLaD",
@@ -921,6 +953,8 @@ def run_idm(
                         embed = embed_list[net_ind]
                         net_acc = train_acc_list[net_ind]
                         for c in range(num_classes):
+                            if c in ignore_class:
+                                continue
                             loss_c = torch.tensor(0.0).to(args.device)
                             img_real = get_images(c, args.batch_real, args, indices_class, images_all)
                             if args.use_sample_ratio:
@@ -930,8 +964,8 @@ def run_idm(
                             lab_syn = torch.ones((img_syn.shape[0],), device=args.device, dtype=torch.long) * c
                             assert args.aug_num == 1
 
-                            if args.aug:
-                                img_syn, lab_syn = number_sign_augment(img_syn, lab_syn)
+                            # if args.aug:
+                            #     img_syn, lab_syn = number_sign_augment(img_syn, lab_syn)
 
                             if args.dsa:
                                 img_real_list = list()
@@ -1020,6 +1054,8 @@ def run_idm(
                     acc_meter_net_train.add(real_logit.detach(), lab_real_)
 
             if is_save_img and it % 20 == 0:
+                if not args.use_gan:
+                    syn_images = None
                 save_latent_images(args, syn_images, latents, unnormalize, it=it)
 
             if is_save_latent and it % 50 == 0 and it > 0:
