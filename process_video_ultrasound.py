@@ -258,4 +258,6 @@ if __name__ == '__main__':
         parser_bool(parser, 'add_variance', False)
         parser_bool(parser, 'use_gan', True)
 
+        args = parser.parse_args()
+
         main(args)
