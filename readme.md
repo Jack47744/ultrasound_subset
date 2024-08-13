@@ -33,7 +33,7 @@ docker run -it --rm \
   --name running-app \
   -v {host_path_to_video_directory}:/usr/src/app/videos \
   -v {host_path_to_output_subset_frame}:/usr/src/app/output \
-  process_ultrasound_v2 --method=dm --video_path "/usr/src/app/videos/{video_file_name}.MP4" --output_path "/usr/src/app/output" 
+  process_ultrasound_video --method=dm --video_path "/usr/src/app/videos/{video_file_name}.MP4" --output_path "/usr/src/app/output" 
 ```
 
 ### Distillation by Improved Distribution Matching
@@ -43,7 +43,7 @@ docker run -it --rm \
   --name running-app \
   -v {host_path_to_video_directory}:/usr/src/app/videos \
   -v {host_path_to_output_subset_frame}:/usr/src/app/output \
-  process_ultrasound_v2 --method=idm --video_path "/usr/src/app/videos/{video_file_name}.MP4" --output_path "/usr/src/app/output" 
+  process_ultrasound_video --method=idm --video_path "/usr/src/app/videos/{video_file_name}.MP4" --output_path "/usr/src/app/output" 
 ```
 
 ### Distillation by Improved Distribution Matching with Cross Entropy Regularization
@@ -53,7 +53,7 @@ docker run -it --rm \
   --name running-app \
   -v {host_path_to_video_directory}:/usr/src/app/videos \
   -v {host_path_to_output_subset_frame}:/usr/src/app/output \
-  process_ultrasound_v2 --method=idm --video_path "/usr/src/app/videos/{video_file_name}.MP4" --output_path "/usr/src/app/output" 
+  process_ultrasound_video --method=idm --video_path "/usr/src/app/videos/{video_file_name}.MP4" --output_path "/usr/src/app/output" 
 ```
 
 ### Extra Options
