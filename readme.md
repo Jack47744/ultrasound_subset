@@ -57,7 +57,7 @@ docker run -it --rm \
 ```
 
 ### Extra Options
-Adding ```--use_gan``` will detemine whether to use DCGAN or not which is significantly different.
+Adding ```--use_gan``` will detemine whether to use DCGAN or not which is significantly different. It can be ```True``` or ```False```. The default value is ```True```.
 
-Adding ```--process_every_x_frame``` will perform frame sampling of the video which reduces the computation
+Adding ```--process_every_x_frame``` will perform frame sampling of the video which reduces the computation. The value must be an integer. The default value is ```1```.
 
