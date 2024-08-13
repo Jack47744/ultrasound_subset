@@ -458,7 +458,7 @@ def get_most_similar_img(
                 img_latent_mean_list[img_idx] = img_embed
             img_latent_mean_all_list.append(img_latent_mean_list)
 
-            for latent_idx, latent in enumerate(tqdm(latents_tmp[c], desc="Processing Latents")):
+            for latent_idx, latent in enumerate(tqdm(latents_tmp[c], desc=f"Processing Latents class: {c}")):
                 
                 latent = torch.unsqueeze(latent, 0)
                 latent_embed_list = [embed(latent) for embed in embed_list]

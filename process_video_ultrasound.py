@@ -155,8 +155,8 @@ def main(args):
             im_size=im_size, 
             generator=generator, 
             n_sample_list=n_sample_list, 
-            is_save_img=True, 
-            is_save_latent=True,
+            is_save_img=False, 
+            is_save_latent=False,
             unnormalize=unnormalize,
             ignore_class = ignore_class
         )
