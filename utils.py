@@ -3,12 +3,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.transforms.functional
 from torchvision.datasets import ImageFolder
-import os
-import kornia as K
+# import os
+# import kornia as K
 import tqdm
-import h5py
+
 from torch.utils.data import Dataset
 from torchvision import datasets, transforms
 # from scipy.ndimage.interpolation import rotate as scipyrotate
@@ -87,8 +86,9 @@ class Config:
         "e": epsilon
     }
 
-    mean = torch.tensor([0.4377, 0.4438, 0.4728]).reshape(1, 3, 1, 1).cuda()
-    std = torch.tensor([0.229, 0.224, 0.225]).reshape(1, 3, 1, 1).cuda()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    mean = torch.tensor([0.4377, 0.4438, 0.4728]).reshape(1, 3, 1, 1).to(device)
+    std = torch.tensor([0.229, 0.224, 0.225]).reshape(1, 3, 1, 1).to(device)
 
 
 config = Config()
@@ -207,6 +207,7 @@ def get_dataset(dataset, data_path, batch_size=1, res=None, args=None):
         class_names = None
 
     elif dataset == "ultrasound":
+        import h5py
         channel = 1
         im_size = (res, res)
         mean = [0.5]
