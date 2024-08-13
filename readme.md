@@ -1,6 +1,6 @@
 ## Getting Started
 
-First, download our repo:
+First, download the repo:
 ```bash
 git clone https://github.com/Jack47744/ultrasound_subset.git
 cd ultrasound_subset

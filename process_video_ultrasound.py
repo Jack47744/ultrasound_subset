@@ -39,9 +39,9 @@ def extract_planes_from_video(args, plane_detector):
 
     return all_frame_list, detected_class_list
 
-def save_video_frame(path, all_frame_list, top_label_list, top_image_indices, num_classes):
+def save_video_frame(args, path, all_frame_list, top_label_list, top_image_indices, num_classes):
     all_frames = np.array(all_frame_list)[top_image_indices]
-
+    path = os.path.join(path, args.method)
     for c in range(num_classes):
         class_path = os.path.join(path, f"{c:02}")
         if not os.path.exists(class_path):
@@ -188,7 +188,7 @@ def main(args):
 
     assert top_label_list.shape[0] == len(top_image_indices)
 
-    save_video_frame(args.output_path, all_frame_list, top_label_list, top_image_indices, num_classes)
+    save_video_frame(args, args.output_path, all_frame_list, top_label_list, top_image_indices, num_classes)
 
 
 if __name__ == '__main__':
