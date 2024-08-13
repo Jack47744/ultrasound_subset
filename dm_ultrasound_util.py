@@ -44,6 +44,8 @@ from torchvision.utils import make_grid
 
 import argparse
 
+import warnings
+
 def add_shared_args():
     parser = argparse.ArgumentParser(description='Parameter Processing')
     parser.add_argument('--dataset', type=str, default='ultrasound', help='dataset')

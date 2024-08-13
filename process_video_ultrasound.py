@@ -81,6 +81,7 @@ def main(args):
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
     args.dsa_param = ParamDiffAug()
     args.dsa = False if args.dsa_strategy in ['none', 'None'] else True
+    args.syn_ce = True if args.method == "idm_ce" else False
 
     sononet = SononetInference()
     all_frame_list, detected_class_list = extract_planes_from_video(args, sononet)
@@ -248,7 +249,6 @@ if __name__ == '__main__':
         parser.add_argument('--video_path', type=str, default="./videos/iFIND01622_20Jul2015_1.MP4", help='MP4 input file path')
         parser.add_argument('--output_path', type=str, default='./subset/', help="subset frame output path")
 
-        parser_bool(parser, 'syn_ce', False)
         parser_bool(parser, 'add_variance', False)
         parser_bool(parser, 'use_gan', True)
 
