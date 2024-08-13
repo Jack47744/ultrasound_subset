@@ -26,7 +26,7 @@ def extract_planes_from_video(args, plane_detector):
         while success:
             if i % args.process_every_x_frame == 0:
                 gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                confidence_score, pred_plane, saliency_map = plane_detector.detect_scan_planes(gray_frame)
+                _, pred_plane, _ = plane_detector.detect_scan_planes(gray_frame)
                 
                 all_frame_list.append(gray_frame)
                 detected_class_list.append(class_list.index(pred_plane))
@@ -96,18 +96,12 @@ def main(args):
                             transforms.Resize(args.res),
                             transforms.CenterCrop(args.res)])
 
-    class_names = None
     class_map = {x:x for x in range(num_classes)}
-    class_map_inv = {x: x for x in range(num_classes)}
-
-    dst_train = VideoFrameDataset(all_frame_list_new, detected_class_list, transform)
-    class_names = None
+    dst_train = VideoFrameDataset(all_frame_list, detected_class_list, transform)
     class_map = {x:x for x in range(num_classes)}
-    class_map_inv = {x: x for x in range(num_classes)}
 
     images_all, labels_all, indices_class = build_dataset(dst_train, class_map, num_classes)
 
-    class_counts = np.bincount(labels_all, minlength=num_classes)
     if args.use_sample_ratio:
         n_sample_list = get_sample_syn_label(labels_all, args.sample_ratio, num_classes=num_classes, min_syn=10, max_syn=200)
         print(sum(n_sample_list))
@@ -173,11 +167,11 @@ def main(args):
     embed_list = get_embed_list(args, channel, num_classes, im_size, num_net=10)
 
     if args.use_sample_ratio:
-        mse_latent_dict, latent_embed_mean_list, img_latent_mean_all_list = get_most_similar_img(
+        mse_latent_dict, _, _ = get_most_similar_img(
             tensor_split, args, indices_class, images_all, is_stack=False, embed_list=embed_list, ret_img_latent=True
         )
     else:
-        mse_latent_dict, latent_embed_mean_list = get_most_similar_img(latents_tmp, args, embed_list=embed_list)
+        mse_latent_dict, _ = get_most_similar_img(latents_tmp, args, embed_list=embed_list)
 
     torch.random.manual_seed(0)
     np.random.seed(0)
@@ -251,7 +245,7 @@ if __name__ == '__main__':
                                         help='Dataset condensation method')
 
         parser.add_argument('--process_every_x_frame', type=int, default=1, help='video sampling frequency')
-        parser.add_argument('--video_path', type=str, default='./', help='MP4 input file path')
+        parser.add_argument('--video_path', type=str, default="./videos/iFIND01622_20Jul2015_1.MP4", help='MP4 input file path')
         parser.add_argument('--output_path', type=str, default='./subset/', help="subset frame output path")
 
         parser_bool(parser, 'syn_ce', False)
