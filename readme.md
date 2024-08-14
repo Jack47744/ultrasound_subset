@@ -67,3 +67,7 @@ Adding ```--max_syn``` will set the maximum of the subset frame per class. For e
 
 Adding ```--sample_ratio``` will set the subset ratio from the whole dataset. The default value is  ```0.01```.
 
+Adding ```--is_save_img``` will save the image of the latent. The default value is  ```False```.
+
+Adding ```--is_save_latent``` will save the latent. The default value is  ```False```.
+
