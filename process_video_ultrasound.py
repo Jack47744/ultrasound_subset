@@ -104,7 +104,7 @@ def main(args):
     images_all, labels_all, indices_class = build_dataset(dst_train, class_map, num_classes)
 
     if args.use_sample_ratio:
-        n_sample_list = get_sample_syn_label(labels_all, args.sample_ratio, num_classes=num_classes, min_syn=10, max_syn=200)
+        n_sample_list = get_sample_syn_label(labels_all, args.sample_ratio, num_classes=num_classes, min_syn=args.min_syn, max_syn=args.max_syn)
         print(sum(n_sample_list))
         print(n_sample_list)
     
@@ -235,15 +235,17 @@ if __name__ == '__main__':
         parser.add_argument('--ij_selection', type=str, default='random', help='Selection method for i and j')
 
         parser.add_argument('--ce_weight', type=float, default=0.1, help='Weight for cross-entropy loss')
-        parser.add_argument('--sample_ratio', type=float, default=0.01, help='Subset selection ratio')
-
-
+        
         parser.add_argument('--init', type=str, default='random', choices=['random', 'real'],
                                 help='whether to initialize the latent using the random initialization or random real image selection.')
         parser.add_argument('--gan_type', type=str, default='dcgan', choices=['dcgan', 'stylegan2'],
                                 help='GAN model to use.')
         parser.add_argument('--method', type=str, default='dm', choices=['dm', 'idm', "idm_ce"],
                                         help='Dataset condensation method')
+        
+        parser.add_argument('--min_syn', type=int, default=10, help='Minimum subset frame per class')
+        parser.add_argument('--max_syn', type=int, default=200, help='Maximum subset frame per class')
+        parser.add_argument('--sample_ratio', type=float, default=0.01, help='Subset selection ratio')
 
         parser.add_argument('--process_every_x_frame', type=int, default=1, help='video sampling frequency')
         parser.add_argument('--video_path', type=str, default="./videos/iFIND01622_20Jul2015_1.MP4", help='MP4 input file path')
