@@ -140,8 +140,8 @@ def main(args):
             im_size=im_size, 
             generator=generator, 
             n_sample_list=n_sample_list, 
-            is_save_img=True, 
-            is_save_latent=True,
+            is_save_img=args.is_save_img, 
+            is_save_latent=args.is_save_latent,
             unnormalize=unnormalize,
             ignore_class = ignore_class
         )
@@ -156,8 +156,8 @@ def main(args):
             im_size=im_size, 
             generator=generator, 
             n_sample_list=n_sample_list, 
-            is_save_img=False, 
-            is_save_latent=False,
+            is_save_img=args.is_save_img, 
+            is_save_latent=args.is_save_latent,
             unnormalize=unnormalize,
             ignore_class = ignore_class
         )
@@ -253,6 +253,8 @@ if __name__ == '__main__':
 
         parser_bool(parser, 'add_variance', False)
         parser_bool(parser, 'use_gan', True)
+        parser_bool(parser, 'is_save_img', False)
+        parser_bool(parser, 'is_save_latent', False)
 
         args = parser.parse_args()
 

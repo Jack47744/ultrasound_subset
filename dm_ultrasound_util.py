@@ -660,7 +660,7 @@ def get_dcgan(args, model_path, ngf=64, channel=1, display_img=True, unnormalize
     nc = 1    # Number of channels in the training images
 
     generator = Generator(args.nz, ngf, channel).to(args.device)
-    generator.load_state_dict(torch.load(model_path))
+    generator.load_state_dict(torch.load(model_path, map_location=args.device))
 
     generator = generator.eval()
     for param in generator.parameters():
