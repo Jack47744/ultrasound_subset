@@ -61,9 +61,9 @@ Adding ```--use_gan``` will detemine whether to use DCGAN or not which is signif
 
 Adding ```--process_every_x_frame``` will perform frame sampling of the video which reduces the computation. The value must be an integer. The default value is ```1```.
 
-Adding ```--min_syn``` will set the minimum of the subset frame per class. For example, if the 1% of the class is less than ```--min_syn```, the number of the subset would be ```--min_syn```. The default value is  ```10```.
+Adding ```--min_syn``` will set the minimum of the subset frame per class. For example, if the 1% of the class is less than ```min_syn```, the number of the subset would be ```min_syn```. The default value is  ```10```.
 
-Adding ```--max_syn``` will set the maximum of the subset frame per class. For example, if the 1% of the class is more than ```--max_syn```, the number of the subset would be ```--max_syn```. The default value is  ```200```.
+Adding ```--max_syn``` will set the maximum of the subset frame per class. For example, if the 1% of the class is more than ```max_syn```, the number of the subset would be ```max_syn```. The default value is  ```200```.
 
 Adding ```--sample_ratio``` will set the subset ratio from the whole dataset. The default value is  ```0.01```.
 
