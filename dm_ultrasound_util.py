@@ -747,77 +747,75 @@ def run_dm(
     print('Hyper-parameters: \n', args.__dict__)
     print('%s training begins'%get_time())
 
-    save_this_it = False
-    with tqdm(total=args.Iteration + 1, desc="Training Progress") as pbar:
-        for it in range(args.Iteration+1):
-            net = get_network(args.model, channel, num_classes, im_size, depth=args.depth, width=args.width).to(args.device) # get a random model
-            net.train()
-            for param in list(net.parameters()):
-                param.requires_grad = False
+    for it in tqdm(range(args.Iteration+1), desc="Training Progress"):
+        net = get_network(args.model, channel, num_classes, im_size, depth=args.depth, width=args.width).to(args.device) # get a random model
+        net.train()
+        for param in list(net.parameters()):
+            param.requires_grad = False
 
-            embed = net.module.embed if torch.cuda.device_count() > 1 else net.embed # for GPU parallel
-            loss_avg = 0
+        embed = net.module.embed if torch.cuda.device_count() > 1 else net.embed # for GPU parallel
+        loss_avg = 0
 
-            if args.use_gan:
-                with torch.no_grad():
-                    image_syn_w_grad = generator(latents)
+        if args.use_gan:
+            with torch.no_grad():
+                image_syn_w_grad = generator(latents)
+        else:
+            image_syn_w_grad = latents
+
+        if args.use_gan:
+            image_syn = image_syn_w_grad.detach()
+            image_syn.requires_grad_(True)
+        else:
+            image_syn = image_syn_w_grad
+
+        loss = torch.tensor(0.0).to(args.device)
+        for c in range(num_classes):
+            if c in ignore_class:
+                continue
+            img_real = get_images(c, args.batch_real, args, indices_class, images_all).to(args.device)
+            if args.use_sample_ratio:
+                img_syn = get_latent_sample_class(c, image_syn, n_sample_list).reshape((n_sample_list[c], channel, im_size[0], im_size[1]))
             else:
-                image_syn_w_grad = latents
+                img_syn = image_syn[c*args.ipc:(c+1)*args.ipc].reshape((args.ipc, channel, im_size[0], im_size[1]))
 
-            if args.use_gan:
-                image_syn = image_syn_w_grad.detach()
-                image_syn.requires_grad_(True)
-            else:
-                image_syn = image_syn_w_grad
+            if args.dsa:
+                seed = int(time.time() * 1000) % 100000
+                img_real = DiffAugment(img_real, args.dsa_strategy, seed=seed, param=args.dsa_param)
+                img_syn = DiffAugment(img_syn, args.dsa_strategy, seed=seed, param=args.dsa_param)
 
-            loss = torch.tensor(0.0).to(args.device)
-            for c in range(num_classes):
-                if c in ignore_class:
-                    continue
-                img_real = get_images(c, args.batch_real, args, indices_class, images_all).to(args.device)
-                if args.use_sample_ratio:
-                    img_syn = get_latent_sample_class(c, image_syn, n_sample_list).reshape((n_sample_list[c], channel, im_size[0], im_size[1]))
-                else:
-                    img_syn = image_syn[c*args.ipc:(c+1)*args.ipc].reshape((args.ipc, channel, im_size[0], im_size[1]))
+            output_real = embed(img_real).detach()
+            output_syn = embed(img_syn)
 
-                if args.dsa:
-                    seed = int(time.time() * 1000) % 100000
-                    img_real = DiffAugment(img_real, args.dsa_strategy, seed=seed, param=args.dsa_param)
-                    img_syn = DiffAugment(img_syn, args.dsa_strategy, seed=seed, param=args.dsa_param)
+            loss += torch.sum((torch.mean(output_real, dim=0) - torch.mean(output_syn, dim=0))**2)
 
-                output_real = embed(img_real).detach()
-                output_syn = embed(img_syn)
+        optimizer_img.zero_grad()
+        loss.backward()
 
-                loss += torch.sum((torch.mean(output_real, dim=0) - torch.mean(output_syn, dim=0))**2)
+        if args.use_gan:
+            latents_detached = latents.detach().clone().requires_grad_(True)
+            syn_images = generator(latents_detached)
+            syn_images.backward((image_syn.grad,))
+            latents.grad = latents_detached.grad
+            
+        else:
+            latents.grad = image_syn.grad.detach().clone()
 
-            optimizer_img.zero_grad()
-            loss.backward()
+        optimizer_img.step()
+        loss_avg += loss.item()
+        loss_avg /= (num_classes)
 
-            if args.use_gan:
-                latents_detached = latents.detach().clone().requires_grad_(True)
-                syn_images = generator(latents_detached)
-                syn_images.backward((image_syn.grad,))
-                latents.grad = latents_detached.grad
-                
-            else:
-                latents.grad = image_syn.grad.detach().clone()
+        wandb.log({
+            "Loss": loss_avg
+        }, step=it)
 
-            optimizer_img.step()
-            loss_avg += loss.item()
-            loss_avg /= (num_classes)
+        if it%50 == 0 and is_save_img:
+            print('%s iter = %04d, loss = %.4f' % (get_time(), it, loss_avg))
+            if not args.use_gan:
+                syn_images = None
+            save_latent_images(args, syn_images, latents, unnormalize, it=it)
 
-            wandb.log({
-                "Loss": loss_avg
-            }, step=it)
-
-            if it%50 == 0 and is_save_img:
-                print('%s iter = %04d, loss = %.4f' % (get_time(), it, loss_avg))
-                if not args.use_gan:
-                    syn_images = None
-                save_latent_images(args, syn_images, latents, unnormalize, it=it)
-
-            if it % 200 == 0 and it > 0 and is_save_latent:
-                save_latents(args, latents, generator=generator, it=it)
+        if it % 200 == 0 and it > 0 and is_save_latent:
+            save_latents(args, latents, generator=generator, it=it)
 
     torch.cuda.empty_cache()
     gc.collect()
