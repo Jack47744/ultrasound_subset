@@ -53,11 +53,17 @@ docker run -it --rm \
   --name running-app \
   -v {host_path_to_video_directory}:/usr/src/app/videos \
   -v {host_path_to_output_subset_frame}:/usr/src/app/output \
-  process_ultrasound_video --method=idm --video_path "/usr/src/app/videos/{video_file_name}.MP4" --output_path "/usr/src/app/output" 
+  process_ultrasound_video --method=idm_ce --video_path "/usr/src/app/videos/{video_file_name}.MP4" --output_path "/usr/src/app/output" 
 ```
 
 ### Extra Options
 Adding ```--use_gan``` will detemine whether to use DCGAN or not which is significantly different. It can be ```True``` or ```False```. The default value is ```True```.
 
 Adding ```--process_every_x_frame``` will perform frame sampling of the video which reduces the computation. The value must be an integer. The default value is ```1```.
+
+Adding ```--min_syn``` will set the minimum of the subset frame per class. For example, if the 1% of the class is less than ```--min_syn```, the number of the subset would be ```--min_syn```. The default value is  ```10```.
+
+Adding ```--max_syn``` will set the maximum of the subset frame per class. For example, if the 1% of the class is more than ```--max_syn```, the number of the subset would be ```--max_syn```. The default value is  ```200```.
+
+Adding ```--sample_ratio``` will set the subset ratio from the whole dataset. The default value is  ```0.01```.
 
