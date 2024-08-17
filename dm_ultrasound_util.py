@@ -521,7 +521,9 @@ def plot_images_with_similarity(args, all_img_top_k_list, similarity_loss_list, 
     for i, (images, similarity_losses) in enumerate(zip(all_img_top_k_list, similarity_loss_list)):
         # print(images.shape)
         for j in range(images.shape[0]):
+
             ax = axs[i, j]
+
             if args.use_gan:
                 images[j] = denorm(torch.unsqueeze(images[j], 0), unnormalize, channels=None, w=None ,h=None, resize = False)
             else:
@@ -539,7 +541,9 @@ def plot_images_with_similarity(args, all_img_top_k_list, similarity_loss_list, 
             
             # Annotate the top image with its similarity loss
             if j > 0:  # Skip the first image (latent image)
-                ax.set_title(f"Loss: {similarity_losses[j-1]:.2f}", fontsize=8)
+                ax.set_title(f"Loss: {similarity_losses[j-1]:.5f}", fontsize=25)
+            else:
+                ax.set_title("Latent", fontsize=25)
 
     plt.tight_layout()
     plt.show()
