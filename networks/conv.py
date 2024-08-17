@@ -30,13 +30,15 @@ class ConvNet(nn.Module):
 
         out = self.features[-1:](x)
         f_maps.append(out)
-        out = out.view(out.size(0), -1)
+        # out = out.view(out.size(0), -1)
+        out = out.reshape(out.size(0), -1)
         out_final = self.classifier(out)
         return out_final, out, f_maps
 
     def embed(self, x):
         out = self.features(x)
-        out = out.view(out.size(0), -1)
+        # out = out.view(out.size(0), -1)
+        out = out.reshape(out.size(0), -1)
         return out
 
     def _get_activation(self, net_act):

@@ -28,14 +28,21 @@ Below are some example commands to run each method.
 
 Prior to running the distillation command, please make sure that ```host_path_to_video_directory``` and ```host_path_to_output_subset_frame``` exists.
 
+### Assign directory and file variables
+```bash
+host_path_to_video_directory="/path/to/your_project/videos"
+host_path_to_output_subset_frame="/path/to/your_project/output"
+video_file_name="video_file.MP4"
+```
+
 ### Distillation by Distribution matching
 The following command will then create the subset selection from the given MP4 file using distribution matching method:
 ```bash
 docker run -it --rm \
   --name running-app \
-  -v {host_path_to_video_directory}:/usr/src/app/videos \
-  -v {host_path_to_output_subset_frame}:/usr/src/app/output \
-  process_ultrasound_video --method=dm --video_path "/usr/src/app/videos/{video_file_name}.MP4" --output_path "/usr/src/app/output" 
+  -v "${host_path_to_video_directory}:/usr/src/app/videos" \
+  -v "${host_path_to_output_subset_frame}:/usr/src/app/output" \
+  process_ultrasound_video --method=dm --video_path "/usr/src/app/videos/${video_file_name}" --output_path "/usr/src/app/output" 
 ```
 
 ### Distillation by Improved Distribution Matching
@@ -43,9 +50,9 @@ The following command will then create the subset selection from the given MP4 f
 ```bash
 docker run -it --rm \
   --name running-app \
-  -v {host_path_to_video_directory}:/usr/src/app/videos \
-  -v {host_path_to_output_subset_frame}:/usr/src/app/output \
-  process_ultrasound_video --method=idm --video_path "/usr/src/app/videos/{video_file_name}.MP4" --output_path "/usr/src/app/output" 
+  -v "${host_path_to_video_directory}:/usr/src/app/videos" \
+  -v "${host_path_to_output_subset_frame}:/usr/src/app/output" \
+  process_ultrasound_video --method=idm --video_path "/usr/src/app/videos/${video_file_name}" --output_path "/usr/src/app/output" 
 ```
 
 ### Distillation by Improved Distribution Matching with Cross Entropy Regularization
@@ -53,9 +60,9 @@ The following command will then create the subset selection from the given MP4 f
 ```bash
 docker run -it --rm \
   --name running-app \
-  -v {host_path_to_video_directory}:/usr/src/app/videos \
-  -v {host_path_to_output_subset_frame}:/usr/src/app/output \
-  process_ultrasound_video --method=idm_ce --video_path "/usr/src/app/videos/{video_file_name}.MP4" --output_path "/usr/src/app/output" 
+  -v "${host_path_to_video_directory}:/usr/src/app/videos" \
+  -v "${host_path_to_output_subset_frame}:/usr/src/app/output" \
+  process_ultrasound_video --method=idm_ce --video_path "/usr/src/app/videos/${video_file_name}" --output_path "/usr/src/app/output" 
 ```
 
 ### Extra Options
