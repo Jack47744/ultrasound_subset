@@ -96,6 +96,7 @@ config = Config()
 
 class HDF5Dataset(Dataset):
     def __init__(self, h5_file_path, dataset_name, label_dataset_name, transform=None):
+        import h5py
         self.h5_file_path = h5_file_path
         self.dataset_name = dataset_name
         self.h5_file = h5py.File(h5_file_path, 'r')
