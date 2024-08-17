@@ -26,6 +26,8 @@ docker build -t process_ultrasound_video .
 ## Usage
 Below are some example commands to run each method.
 
+Prior to running the distillation command, please make sure that ```host_path_to_video_directory``` and ```host_path_to_output_subset_frame``` exists.
+
 ### Distillation by Distribution matching
 The following command will then create the subset selection from the given MP4 file using distribution matching method:
 ```bash
