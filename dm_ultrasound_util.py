@@ -147,7 +147,7 @@ def display_latent(latent, num_classes, n_img, args, is_denorm=False, channel=1,
         reshaped_tensor = denorm(reshaped_tensor, unnormalize, channel, im_size[0], im_size[1])
     reshaped_tensor = reshaped_tensor.view(num_classes, n_img, channel, im_size[0], im_size[1]).detach().cpu()
     # Plotting
-    fig, axs = plt.subplots(n_img, num_classes, figsize=(num_classes*1.5, n_img))
+    fig, axs = plt.subplots(n_img, num_classes, figsize=(num_classes*3, n_img*3))
     for i in range(num_classes):
         for j in range(n_img):
             if args.dataset == "ultrasound":
@@ -155,11 +155,11 @@ def display_latent(latent, num_classes, n_img, args, is_denorm=False, channel=1,
             else:
                 axs[j, i].imshow(reshaped_tensor[i, j].permute(1, 2, 0), )
             axs[j, i].axis('off')
-            axs[j, i].set_title(f'Class {i + 1}, Image {j + 1}', fontsize=8)
+            if j == 0:
+                axs[j, i].set_title(label_number_to_name_dict[i][3:], fontsize=20, weight='bold')
 
     plt.tight_layout()
     plt.show()
-
 
 label_number_to_name_dict = {
     0: '10_3VV', 
