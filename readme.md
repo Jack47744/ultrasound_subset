@@ -1,3 +1,7 @@
+![The efficient subset selection involves two tasks: generating the distilled images and finding the most similar images to those distilled images.](resources/Dissertation%20Fig.png)
+
+We aim to create the optimal subset of ultrasound video frames via dataset distillation. Our approach involves three steps to find this optimal subset. First, we trained the generator from the GAN to be the transform function that changes the latent vector to the image. Second, we trained the latent vector or the distilled images through dataset distillation algorithms to make it representative of each class. Third, we identified the most similar images based on the distilled images. 
+
 # Docker Setup
 
 This repository contains the necessary files to set up and run a Python application in a Docker container. The Docker image is built using a `python:3.10.12-slim-buster` base image.
