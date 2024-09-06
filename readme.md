@@ -1,4 +1,4 @@
-![The efficient subset selection involves two tasks: generating the distilled images and finding the most similar images to those distilled images.](resources/Dissertation%20Fig.png)
+![Efficient Ultrasound Video Frame Subset Selection via Generative Dataset Distillation](resources/Dissertation_Fig.png)
 
 We aim to create the optimal subset of ultrasound video frames via dataset distillation. Our approach involves three steps to find this optimal subset. First, we trained the generator from the GAN to be the transform function that changes the latent vector to the image. Second, we trained the latent vector or the distilled images through dataset distillation algorithms to make it representative of each class. Third, we identified the most similar images based on the distilled images. 
 
