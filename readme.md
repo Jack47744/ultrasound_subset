@@ -7,6 +7,9 @@ This repository contains the necessary files to set up and run a Python applicat
 - **Docker**: Make sure Docker is installed on your system. You can download and install Docker from the official website:
   - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
+- **GPU**: Install Follow the official NVIDIA Container Toolkit:
+  - [installation instructions](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+
 
 
 ## Getting Started
@@ -38,7 +41,7 @@ video_file_name="video_file.MP4"
 ### Distillation by Distribution matching
 The following command will then create the subset selection from the given MP4 file using distribution matching method:
 ```bash
-docker run -it --rm \
+docker run -it --rm --gpus\
   --name running-app \
   -v "${host_path_to_video_directory}:/usr/src/app/videos" \
   -v "${host_path_to_output_subset_frame}:/usr/src/app/output" \
@@ -48,7 +51,7 @@ docker run -it --rm \
 ### Distillation by Improved Distribution Matching
 The following command will then create the subset selection from the given MP4 file using improved distribution matching method:
 ```bash
-docker run -it --rm \
+docker run -it --rm --gpus\
   --name running-app \
   -v "${host_path_to_video_directory}:/usr/src/app/videos" \
   -v "${host_path_to_output_subset_frame}:/usr/src/app/output" \
@@ -58,7 +61,7 @@ docker run -it --rm \
 ### Distillation by Improved Distribution Matching with Cross Entropy Regularization
 The following command will then create the subset selection from the given MP4 file using improved distribution matching with cross entropy regularization method:
 ```bash
-docker run -it --rm \
+docker run -it --rm --gpus\
   --name running-app \
   -v "${host_path_to_video_directory}:/usr/src/app/videos" \
   -v "${host_path_to_output_subset_frame}:/usr/src/app/output" \
